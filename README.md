@@ -1,0 +1,2 @@
+# status
+status.srating.io
