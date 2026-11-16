@@ -1,0 +1,2 @@
+# deploy.sh runs on the server, where a CRLF shebang is "bad interpreter"
+*.sh text eol=lf

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>srating.io status</title>
+<meta name="description" content="Live uptime and response times for the srating.io website, public API and data pipeline.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6' fill='%2316a34a'/></svg>">
+<link rel="stylesheet" href="status.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="head">
+    <h1>srating.io status</h1>
+    <p class="sub">Uptime and response times, checked every minute.</p>
+  </header>
+
+  <!-- Every panel starts in a loading state. A blank page during an outage is indistinguishable
+       from a broken one, so nothing here renders empty. -->
+  <div id="banner" class="banner banner-unknown">
+    <span class="dot" aria-hidden="true"></span>
+    <span id="banner-text">Loading current status&hellip;</span>
+  </div>
+
+  <div id="stale" class="notice notice-warn" hidden></div>
+  <div id="notices"></div>
+
+  <section id="services" aria-labelledby="services-head">
+    <h2 id="services-head" class="sr-only">Services</h2>
+    <p id="services-empty" class="muted">Loading services&hellip;</p>
+  </section>
+
+  <section aria-labelledby="incidents-head">
+    <h2 id="incidents-head">Recent incidents</h2>
+    <div id="incidents"><p class="muted">Loading&hellip;</p></div>
+  </section>
+
+  <footer class="foot">
+    <p id="generated" class="muted"></p>
+    <p class="muted"><a href="https://www.srating.io">srating.io</a> &middot; <a href="https://docs.srating.io">API docs</a></p>
+  </footer>
+</main>
+<script src="status.js"></script>
+</body>
+</html>

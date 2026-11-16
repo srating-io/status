@@ -1,0 +1,271 @@
+/*
+ * No build step and no dependencies on purpose. This page has to render when the gui is down,
+ * which rules out anything served by it.
+ */
+
+:root {
+  --bg: #ffffff;
+  --panel: #f7f8fa;
+  --border: #e3e6ea;
+  --text: #16191d;
+  --muted: #5e6672;
+  --link: #1557b0;
+
+  --ok: #15803d;
+  --warn: #a16207;
+  --down: #b4232a;
+  --unknown: #9aa1ab;
+
+  /* the bars are small, so they get the brighter fills rather than the text-contrast ones */
+  --ok-bar: #16a34a;
+  --warn-bar: #d97706;
+  --down-bar: #dc2626;
+  --none-bar: #dfe3e8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216;
+    --panel: #161a20;
+    --border: #262c35;
+    --text: #e8ebee;
+    --muted: #9aa3af;
+    --link: #7fb3ff;
+
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --down: #fb7185;
+    --unknown: #6b7280;
+
+    --ok-bar: #22c55e;
+    --warn-bar: #f59e0b;
+    --down-bar: #ef4444;
+    --none-bar: #2b313a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f1216;
+  --panel: #161a20;
+  --border: #262c35;
+  --text: #e8ebee;
+  --muted: #9aa3af;
+  --link: #7fb3ff;
+
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --down: #fb7185;
+  --unknown: #6b7280;
+
+  --ok-bar: #22c55e;
+  --warn-bar: #f59e0b;
+  --down-bar: #ef4444;
+  --none-bar: #2b313a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+a { color: var(--link); }
+
+.wrap {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 40px 16px 64px;
+}
+
+.head h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+.sub, .muted { color: var(--muted); }
+.sub { margin: 0 0 24px; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- overall banner ---- */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--panel);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.banner .dot {
+  flex: none;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--unknown);
+}
+
+.banner-operational { border-left-color: var(--ok-bar); }
+.banner-operational .dot { background: var(--ok-bar); }
+.banner-degraded { border-left-color: var(--warn-bar); }
+.banner-degraded .dot { background: var(--warn-bar); }
+.banner-down { border-left-color: var(--down-bar); }
+.banner-down .dot { background: var(--down-bar); }
+.banner-unknown { border-left-color: var(--unknown); }
+
+.notice {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: var(--panel);
+  font-size: 14px;
+}
+
+.notice-warn { border-left-color: var(--warn-bar); }
+
+/* ---- service groups ---- */
+
+.group { margin-top: 28px; }
+
+.group h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.svc {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.svc-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.svc-name { font-weight: 600; }
+
+/*
+ * State is never carried by color alone: the glyph differs per state and the label is spelled out,
+ * so this reads the same to a colorblind visitor and in a grayscale print.
+ */
+.state {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.state::before { margin-right: 6px; font-weight: 700; }
+
+.state-operational { color: var(--ok); }
+.state-operational::before { content: "\2714"; }
+.state-degraded { color: var(--warn); }
+.state-degraded::before { content: "\26A0"; }
+.state-down { color: var(--down); }
+.state-down::before { content: "\2716"; }
+.state-maintenance, .state-unknown { color: var(--muted); }
+.state-maintenance::before { content: "\1F6E0"; }
+.state-unknown::before { content: "\2013"; }
+
+.svc-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* ---- 90 day bars ---- */
+
+.bars {
+  display: flex;
+  gap: 2px;
+  align-items: stretch;
+  height: 30px;
+  margin-top: 12px;
+}
+
+.bar {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 2px;
+  background: var(--none-bar);
+}
+
+.bar-ok { background: var(--ok-bar); }
+.bar-warn { background: var(--warn-bar); }
+.bar-down { background: var(--down-bar); }
+
+.bars-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.spark { display: block; width: 100%; height: 34px; margin-top: 10px; }
+.spark path { fill: none; stroke: var(--link); stroke-width: 1.5; }
+
+/* ---- incidents ---- */
+
+h2 {
+  font-size: 16px;
+  margin: 36px 0 12px;
+}
+
+.inc {
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+}
+
+.inc-open { border-left-color: var(--down-bar); }
+.inc-resolved { border-left-color: var(--ok-bar); }
+.inc h4 { margin: 0 0 4px; font-size: 14px; }
+.inc p { margin: 0; font-size: 14px; color: var(--muted); }
+.inc time { font-size: 12px; color: var(--muted); }
+
+.foot {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.foot p { margin: 4px 0; }
+
+@media (max-width: 480px) {
+  .wrap { padding-top: 28px; }
+  .bars { height: 24px; }
+}

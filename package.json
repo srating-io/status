@@ -1,0 +1,11 @@
+{
+  "name": "status.srating.io",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The public status page for srating.io. Static files, no dependencies, no build.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "deploy": "bash scripts/deploy.sh"
+  }
+}

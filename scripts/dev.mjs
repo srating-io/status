@@ -1,0 +1,240 @@
+/*
+ * Serves public/ with a generated status.json and history.json, so the page can be worked on
+ * without the prober, a database or nginx.
+ *
+ *   npm run dev              all operational
+ *   npm run dev -- down      start on another scenario
+ *   /__scenario/<name>       switch while it is running
+ *
+ * The json is built per request rather than kept as fixture files: the page compares
+ * `generated_at` and the bucket dates to the clock, so a file on disk is stale the day after it
+ * is written.
+ */
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const PORT = Number(process.env.PORT) || 3003;
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
+const DAY = 86400000;
+
+/** The same keys, names and order the prober publishes. */
+const SERVICES = [
+  { key: 'v1', name: 'Public API', group: 'API', latency: 140 },
+  { key: 'internal', name: 'Website API', group: 'API', latency: 95 },
+  { key: 'database', name: 'Database', group: 'API', latency: 3 },
+  { key: 'gui', name: 'Website', group: 'Website', latency: 310 },
+  { key: 'docs', name: 'Documentation', group: 'Website', latency: 180 },
+  { key: 'ux', name: 'Design system', group: 'Website', latency: 210 },
+  { key: 'ws', name: 'Live updates', group: 'Realtime', latency: 4 },
+  { key: 'stripe', name: 'Billing', group: 'Billing', latency: 120 },
+  // the prober reports no latency for the pipeline: its number is a log age, not a response
+  { key: 'pipeline', name: 'Data pipeline', group: 'Data', latency: null },
+];
+
+const SCENARIOS = {
+  'operational': 'everything up, one resolved incident in the list',
+  'degraded': 'the public api answering slowly',
+  'down': 'website api and database down, an open incident and a notice',
+  'stale': 'the prober stopped 20 minutes ago',
+  'no-history': 'first hour after launch, history.json does not exist yet',
+  'empty': 'a snapshot with no services in it',
+  'missing': 'status.json does not exist',
+};
+
+let scenario = SCENARIOS[process.argv[2]] ? process.argv[2] : 'operational';
+
+/** Stable per service and day, so a reload does not redraw different bars. */
+const noise = (seed) => {
+  let hash = 2166136261;
+
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return ((hash >>> 0) % 10000) / 10000;
+};
+
+const dayKey = (date) => date.toISOString().slice(0, 10);
+
+const buildHistory = () => {
+  const services = {};
+  const now = Date.now();
+
+  for (const service of SERVICES) {
+    const buckets = [];
+
+    // 75 of the 90 days, so the oldest bars show what "no data" looks like
+    for (let i = 74; i >= 0; i--) {
+      const key = dayKey(new Date(now - (i * DAY)));
+      const roll = noise(service.key + key);
+
+      let uptime = 1;
+
+      if (roll > 0.985) {
+        uptime = 0.9;
+      } else if (roll > 0.94) {
+        uptime = 0.997;
+      }
+
+      buckets.push({
+        'bucket': key,
+        'uptime': uptime,
+        'p50_ms': service.latency === null ? null : Math.round(service.latency * (0.8 + (roll * 0.5))),
+      });
+    }
+
+    services[service.key] = buckets;
+  }
+
+  return { 'generated_at': new Date().toISOString(), 'days': 90, 'services': services };
+};
+
+const buildSnapshot = () => {
+  const now = Date.now();
+  const states = {};
+  const notices = [];
+
+  const incidents = [{
+    'state': 'resolved',
+    'title': 'Live updates were not responding',
+    'body': 'The websocket server was restarted after a deploy and came back within four minutes.',
+    'started_at': new Date(now - (9 * DAY)).toISOString(),
+    'resolved_at': new Date(now - (9 * DAY) + (4 * 60000)).toISOString(),
+  }];
+
+  if (scenario === 'degraded') {
+    states.v1 = 'degraded';
+  }
+
+  if (scenario === 'down') {
+    states.internal = 'down';
+    states.database = 'down';
+    notices.push('Score and ranking updates are delayed.');
+
+    incidents.unshift({
+      'state': 'investigating',
+      'title': 'Website API is not responding',
+      'body': null,
+      'started_at': new Date(now - (6 * 60000)).toISOString(),
+      'resolved_at': null,
+    });
+  }
+
+  const services = scenario === 'empty' ? [] : SERVICES.map((service) => {
+    const state = states[service.key] || 'operational';
+    let latency = service.latency;
+
+    if (state === 'down') {
+      latency = null;
+    } else if (state === 'degraded' && latency !== null) {
+      latency = latency * 9;
+    }
+
+    return {
+      'key': service.key,
+      'name': service.name,
+      'group': service.group,
+      'state': state,
+      'latency_ms': latency,
+      'uptime_24h': state === 'down' ? 0.9958 : 1,
+      'uptime_90d': 0.9994,
+    };
+  });
+
+  let overall = 'operational';
+
+  if (services.some((service) => service.state === 'down')) {
+    overall = 'down';
+  } else if (services.some((service) => service.state === 'degraded')) {
+    overall = 'degraded';
+  }
+
+  return {
+    'generated_at': new Date(scenario === 'stale' ? now - (20 * 60000) : now).toISOString(),
+    'interval_ms': 60000,
+    'state': overall,
+    'services': services,
+    'notices': notices,
+    'incidents': incidents,
+  };
+};
+
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+};
+
+const send = (res, status, type, body) => {
+  res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+  res.end(body);
+};
+
+const server = http.createServer((req, res) => {
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+
+  if (pathname.startsWith('/__scenario/')) {
+    const name = pathname.slice('/__scenario/'.length);
+
+    if (!SCENARIOS[name]) {
+      send(res, 404, 'text/plain', 'unknown scenario, one of: ' + Object.keys(SCENARIOS).join(', '));
+      return;
+    }
+
+    scenario = name;
+    console.log('scenario -> ' + name);
+    res.writeHead(302, { 'Location': '/' });
+    res.end();
+    return;
+  }
+
+  if (pathname === '/status.json') {
+    if (scenario === 'missing') {
+      send(res, 404, 'text/plain', 'not found');
+      return;
+    }
+
+    send(res, 200, TYPES['.json'], JSON.stringify(buildSnapshot()));
+    return;
+  }
+
+  if (pathname === '/history.json') {
+    if (scenario === 'no-history' || scenario === 'missing') {
+      send(res, 404, 'text/plain', 'not found');
+      return;
+    }
+
+    send(res, 200, TYPES['.json'], JSON.stringify(buildHistory()));
+    return;
+  }
+
+  const file = path.join(ROOT, pathname === '/' ? 'index.html' : pathname);
+
+  // nothing outside public/, whatever the path says
+  if (file !== ROOT && !file.startsWith(ROOT + path.sep)) {
+    send(res, 403, 'text/plain', 'forbidden');
+    return;
+  }
+
+  fs.readFile(file, (error, body) => {
+    if (error) {
+      send(res, 404, 'text/plain', 'not found');
+      return;
+    }
+
+    send(res, 200, TYPES[path.extname(file)] || 'application/octet-stream', body);
+  });
+});
+
+server.listen(PORT, '127.0.0.1', () => {
+  console.log('status page on http://localhost:' + PORT + ' (scenario: ' + scenario + ')');
+
+  for (const name of Object.keys(SCENARIOS)) {
+    console.log('  /__scenario/' + name.padEnd(12) + SCENARIOS[name]);
+  }
+});
