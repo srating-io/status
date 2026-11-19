@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 const PORT = Number(process.env.PORT) || 3003;
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const DAY = 86400000;
+const HOUR = 3600000;
 
 /** The same keys, names and order the prober publishes. */
 const SERVICES = [
@@ -39,6 +40,7 @@ const SCENARIOS = {
   'down': 'website api and database down, an open incident and a notice',
   'stale': 'the prober stopped 20 minutes ago',
   'no-history': 'first hour after launch, history.json does not exist yet',
+  'old-history': 'history.json from a prober older than the charts: daily p50 only',
   'empty': 'a snapshot with no services in it',
   'missing': 'status.json does not exist',
 };
@@ -59,9 +61,24 @@ const noise = (seed) => {
 
 const dayKey = (date) => date.toISOString().slice(0, 10);
 
+/** p50, p95 and max for one bucket off a typical latency, or nulls for a service with none. */
+const latencies = (base, roll) => {
+  if (base === null) {
+    return { 'p50_ms': null, 'p95_ms': null, 'max_ms': null };
+  }
+
+  const p50 = Math.round(base * (0.8 + (roll * 0.5)));
+  const p95 = Math.round(p50 * (2.2 + roll));
+
+  return { 'p50_ms': p50, 'p95_ms': p95, 'max_ms': Math.round(p95 * (1.4 + (roll * 1.5))) };
+};
+
 const buildHistory = () => {
   const services = {};
+  const hourly = {};
   const now = Date.now();
+  const lastHour = Math.floor(now / HOUR) * HOUR - HOUR;
+  const old = scenario === 'old-history';
 
   for (const service of SERVICES) {
     const buckets = [];
@@ -79,17 +96,76 @@ const buildHistory = () => {
         uptime = 0.997;
       }
 
-      buckets.push({
-        'bucket': key,
-        'uptime': uptime,
-        'p50_ms': service.latency === null ? null : Math.round(service.latency * (0.8 + (roll * 0.5))),
-      });
+      const ms = latencies(service.latency, roll);
+
+      // the shape an older prober wrote: p50 and nothing else
+      buckets.push(old
+        ? { 'bucket': key, 'uptime': uptime, 'p50_ms': ms.p50_ms }
+        : { 'bucket': key, 'uptime': uptime, ...ms });
     }
 
     services[service.key] = buckets;
+
+    const hours = [];
+
+    // 160 of the 168 hours, so the oldest show "no data" -- the prober only began rolling up then
+    for (let i = 159; i >= 0; i--) {
+      const start = new Date(lastHour - (i * HOUR));
+      const roll = noise(service.key + start.toISOString());
+      const utcHour = start.getUTCHours();
+
+      // evenings in the US are the busy hours, so they run slower
+      const load = utcHour >= 23 || utcHour <= 3 ? 1.45 : 1;
+      let uptime = roll > 0.99 ? 0.95 : 1;
+
+      // one bad hour yesterday, so the strip and the tooltips have something to show
+      if (i === 26 && (service.key === 'internal' || service.key === 'database')) {
+        uptime = 0.8;
+      }
+
+      if (scenario === 'down' && i === 0 && (service.key === 'internal' || service.key === 'database')) {
+        uptime = 0.9;
+      }
+
+      const ms = latencies(service.latency === null ? null : service.latency * load, roll);
+
+      hours.push({ 'bucket': start.toISOString().slice(0, 13) + ':00:00Z', 'uptime': uptime, ...ms });
+    }
+
+    hourly[service.key] = hours;
   }
 
-  return { 'generated_at': new Date().toISOString(), 'days': 90, 'services': services };
+  const history = { 'generated_at': new Date().toISOString(), 'days': 90, 'services': services };
+
+  if (old) {
+    return history;
+  }
+
+  return {
+    ...history,
+    'hours': 168,
+    'hourly': hourly,
+    'incidents': [
+      {
+        'service': 'internal',
+        'title': 'Website API is not responding',
+        'started_at': new Date(lastHour - (26 * HOUR) + (10 * 60000)).toISOString(),
+        'resolved_at': new Date(lastHour - (26 * HOUR) + (22 * 60000)).toISOString(),
+      },
+      {
+        'service': 'v1',
+        'title': 'Public API is not responding',
+        'started_at': new Date(now - (40 * DAY)).toISOString(),
+        'resolved_at': new Date(now - (40 * DAY) + (2 * HOUR)).toISOString(),
+      },
+      {
+        'service': null,
+        'title': 'Scheduled database maintenance',
+        'started_at': new Date(now - (10 * DAY)).toISOString(),
+        'resolved_at': new Date(now - (10 * DAY) + (45 * 60000)).toISOString(),
+      },
+    ],
+  };
 };
 
 const buildSnapshot = () => {
