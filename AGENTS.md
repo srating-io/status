@@ -1,6 +1,6 @@
 # AGENTS.md — srating.io-status (status.srating.io)
 
-The public status page. Three static files in `public/`, served by nginx off disk. See the README
+The public status page. Four static files in `public/`, served by nginx off disk. See the README
 for how the data reaches it and how it is deployed.
 
 ## Commands
@@ -11,7 +11,8 @@ for how the data reaches it and how it is deployed.
 ## Layout
 ```
 public/index.html   markup, every panel starts in a loading state
-public/status.js    fetches status.json + history.json every 60s and renders them
+public/status.js    fetches status.json every 60s and history.json every 10 min, renders them
+public/chart.js     the response time line and uptime strip, hand-written SVG; loads first
 public/status.css   the only stylesheet, light and dark through prefers-color-scheme
 scripts/dev.mjs     local server and scenario generator
 scripts/deploy.sh   the deploy
@@ -21,6 +22,10 @@ scripts/deploy.sh   the deploy
 - **No dependency on anything it reports on.** No api call, no framework, no bundler, no node
   process in production, no CDN script or font. If the gui, the api or mysql is down this page
   still has to load.
+- **One range scopes everything.** The range buttons drive every strip, tile, chart and table, all
+  bucketed by the one `slotted` function in `status.js`, so the numbers always agree.
+- **Charts have a table twin and a keyboard path.** Every value a tooltip shows is also in the
+  table view, and arrow keys move through a focused chart the way the pointer does.
 - **Nothing in `public/` is generated.** `status.json` and `history.json` are written by the
   prober (`sports-scraper/handlers/statusProbe.ts`) into a separate `data/` directory.
 - The json shapes are `Status.Snapshot` and `Status.History` in `@srating-io/types`. A new field

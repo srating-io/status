@@ -3,7 +3,7 @@
 The public status page at [status.srating.io](https://status.srating.io): uptime, response times
 and incidents for the website, the public API and the data pipeline.
 
-Three static files and nothing else. No framework, no build step, no dependencies, no node process.
+Four static files and nothing else. No framework, no build step, no dependencies, no node process.
 
 ## Why it is static
 
@@ -20,11 +20,22 @@ data-pipeline/handlers/statusProbe.ts      probes every service once a minute
         |  writes (temp file + rename)
         v
 /var/www/status.srating.io/data/status.json     current state, rewritten every minute
-/var/www/status.srating.io/data/history.json    90 days of daily buckets, rewritten hourly
+/var/www/status.srating.io/data/history.json    90 days daily + 168 hours hourly, rewritten hourly
         ^
-        |  fetched every 60s, never cached
-public/status.js
+        |  status.json every 60s, history.json every 10 min, never cached
+public/status.js  (draws through public/chart.js)
 ```
+
+`history.json` carries, per public service, daily buckets for 90 days and hourly buckets for the
+last 168 complete hours, each with uptime and p50 / p95 / max response time, plus every incident in
+the 90 days so the charts can shade them. The hourly pass runs on the first tick after each UTC
+hour, so the newest hour is charted within about a minute of closing. It is refetched every 10
+minutes rather than every minute because it is the larger file (~180 KB) and nginx does not gzip it.
+
+The page draws everything for one range at a time (24 hours, 7 days, 30 days, 90 days): the
+overview strip, each card's strip and, behind **Details**, the tiles, the response time chart and a
+table view. The 24 hour and 7 day ranges need the hourly series; a file from an older prober has
+none, and the page falls back to 30 days and says so.
 
 The shapes are `Status.Snapshot` and `Status.History` in `@srating-io/types` (`src/status.ts`).
 That file is the contract: change it there first, then the prober, then this page.
@@ -54,10 +65,13 @@ set up. Switch scenarios while it runs at `/__scenario/<name>`:
 | `down` | two services down, an open incident and a notice |
 | `stale` | the prober stopped 20 minutes ago |
 | `no-history` | `history.json` missing, as in the first hour after launch |
+| `old-history` | `history.json` from a prober older than the charts: daily p50 only |
 | `empty` | a snapshot with no services |
 | `missing` | `status.json` missing |
 
-Check both color schemes. The css follows `prefers-color-scheme`.
+Check both color schemes. The css follows `prefers-color-scheme`. The three response time colors
+(`--series-1/2/3`) were validated as a set against `--panel` in both modes; change one and
+re-validate all three.
 
 ## Deploying
 
