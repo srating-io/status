@@ -26,6 +26,21 @@
   <div id="stale" class="notice notice-warn" hidden></div>
   <div id="notices"></div>
 
+  <!-- One range for the whole page: every strip, tile and chart below follows it. -->
+  <div class="ranges" role="group" aria-label="Time range">
+    <button type="button" class="range-btn" data-range="24h" aria-pressed="true">24 hours</button>
+    <button type="button" class="range-btn" data-range="7d" aria-pressed="false">7 days</button>
+    <button type="button" class="range-btn" data-range="30d" aria-pressed="false">30 days</button>
+    <button type="button" class="range-btn" data-range="90d" aria-pressed="false">90 days</button>
+  </div>
+  <p id="range-note" class="muted range-note" hidden></p>
+
+  <section id="overview" class="overview" aria-labelledby="overview-head">
+    <h2 id="overview-head">All services</h2>
+    <p class="muted overview-sub">Each bar is the worst affected service at that time.</p>
+    <div id="overview-chart"><p class="muted">Loading&hellip;</p></div>
+  </section>
+
   <section id="services" aria-labelledby="services-head">
     <h2 id="services-head" class="sr-only">Services</h2>
     <p id="services-empty" class="muted">Loading services&hellip;</p>
@@ -41,6 +56,7 @@
     <p class="muted"><a href="https://www.srating.io">srating.io</a> &middot; <a href="https://docs.srating.io">API docs</a></p>
   </footer>
 </main>
+<script src="chart.js"></script>
 <script src="status.js"></script>
 </body>
 </html>

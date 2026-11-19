@@ -21,6 +21,14 @@
   --warn-bar: #d97706;
   --down-bar: #dc2626;
   --none-bar: #dfe3e8;
+
+  /*
+   * Response time series, in a fixed order: typical, slow tail, worst. Validated as a set against
+   * --panel in both modes. The light third sits under 3:1, which the legend and table relieve.
+   */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -41,6 +49,10 @@
     --warn-bar: #f59e0b;
     --down-bar: #ef4444;
     --none-bar: #2b313a;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
   }
 }
 
@@ -61,6 +73,10 @@
   --warn-bar: #f59e0b;
   --down-bar: #ef4444;
   --none-bar: #2b313a;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
 }
 
 * { box-sizing: border-box; }
@@ -194,16 +210,74 @@ a { color: var(--link); }
 .state-maintenance::before { content: "\1F6E0"; }
 .state-unknown::before { content: "\2013"; }
 
+.svc-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+
 .svc-meta {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
   font-size: 13px;
   color: var(--muted);
-  margin-top: 6px;
 }
 
-/* ---- 90 day bars ---- */
+.details-toggle {
+  flex: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--link);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.details-toggle[aria-expanded="true"] { background: var(--bg); }
+
+/* ---- range control ---- */
+
+.ranges {
+  display: flex;
+  gap: 0;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.range-btn {
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel);
+  border: 0;
+  border-left: 1px solid var(--border);
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.range-btn:first-child { border-left: 0; }
+.range-btn[aria-pressed="true"] { color: var(--text); background: var(--bg); font-weight: 600; }
+.range-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.range-note { font-size: 13px; margin: 8px 0 0; }
+
+.overview h2 { margin-bottom: 2px; }
+.overview-sub { font-size: 13px; margin: 0 0 4px; }
+
+/* ---- uptime strips ---- */
+
+.strip {
+  position: relative;
+  border-radius: 4px;
+  outline-offset: 3px;
+}
 
 .bars {
   display: flex;
@@ -218,11 +292,29 @@ a { color: var(--link); }
   min-width: 0;
   border-radius: 2px;
   background: var(--none-bar);
+  transform-origin: bottom;
+  transition: transform 80ms ease-out;
 }
 
 .bar-ok { background: var(--ok-bar); }
 .bar-warn { background: var(--warn-bar); }
 .bar-down { background: var(--down-bar); }
+.bar-active { transform: scaleY(1.18); filter: brightness(1.12); }
+
+/* incidents as a timeline under the bars, so they do not compete with the status colors above */
+.incident-track {
+  position: relative;
+  height: 4px;
+  margin-top: 3px;
+}
+
+.incident-mark {
+  position: absolute;
+  top: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--down-bar);
+}
 
 .bars-axis {
   display: flex;
@@ -232,8 +324,105 @@ a { color: var(--link); }
   margin-top: 6px;
 }
 
-.spark { display: block; width: 100%; height: 34px; margin-top: 10px; }
-.spark path { fill: none; stroke: var(--link); stroke-width: 1.5; }
+/* ---- detail panel ---- */
+
+.detail {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tile {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.tile-value { font-size: 20px; font-weight: 600; }
+.tile-label { font-size: 13px; color: var(--muted); }
+.tile-note { font-size: 12px; color: var(--muted); }
+
+.chart-title { margin: 0 0 6px; font-size: 14px; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  cursor: pointer;
+}
+.legend-item[aria-pressed="false"] { opacity: 0.45; text-decoration: line-through; }
+.legend-item:disabled { cursor: default; }
+.legend-key, .tip-key { display: inline-block; width: 14px; height: 2px; border-radius: 1px; }
+
+.plot { position: relative; outline-offset: 2px; }
+
+.chart-svg { display: block; overflow: visible; }
+.chart-svg .grid { stroke: var(--border); stroke-width: 1; }
+.chart-svg .tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart-svg .end-label { fill: var(--text); font-size: 11px; font-weight: 600; }
+.chart-svg .series { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.chart-svg .area { opacity: 0.1; }
+.chart-svg .shade { fill: var(--down-bar); opacity: 0.1; }
+.chart-svg .crosshair { stroke: var(--muted); stroke-width: 1; }
+.chart-svg .dot { stroke: var(--panel); stroke-width: 2; }
+
+/* ---- tooltip ---- */
+
+.tip {
+  position: absolute;
+  top: 8px;
+  z-index: 2;
+  min-width: 140px;
+  max-width: 260px;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  pointer-events: none;
+}
+.strip .tip { top: auto; bottom: calc(100% + 4px); }
+
+.tip-head { color: var(--muted); margin-bottom: 4px; }
+.tip-row { display: flex; align-items: baseline; gap: 6px; }
+.tip-row strong { font-variant-numeric: tabular-nums; }
+.tip-key { align-self: center; }
+.tip-key-none { visibility: hidden; }
+.tip-label { color: var(--muted); }
+
+/* ---- table view ---- */
+
+.table-view { margin-top: 12px; font-size: 13px; }
+.table-view summary { cursor: pointer; color: var(--link); }
+.table-scroll { max-height: 280px; overflow: auto; margin-top: 8px; }
+.table-view table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.table-view th, .table-view td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.table-view th:first-child, .table-view td:first-child { text-align: left; }
+.table-view th { position: sticky; top: 0; background: var(--panel); font-weight: 600; color: var(--muted); }
 
 /* ---- incidents ---- */
 
@@ -268,4 +457,9 @@ h2 {
 @media (max-width: 480px) {
   .wrap { padding-top: 28px; }
   .bars { height: 24px; }
+  .range-btn { padding: 6px 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar { transition: none; }
 }
