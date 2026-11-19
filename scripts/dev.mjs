@@ -101,8 +101,9 @@ const buildSnapshot = () => {
     'state': 'resolved',
     'title': 'Live updates were not responding',
     'body': 'The websocket server was restarted after a deploy and came back within four minutes.',
-    'started_at': new Date(now - (9 * DAY)).toISOString(),
-    'resolved_at': new Date(now - (9 * DAY) + (4 * 60000)).toISOString(),
+    // inside the prober's 2 day window for resolved incidents
+    'started_at': new Date(now - DAY).toISOString(),
+    'resolved_at': new Date(now - DAY + (4 * 60000)).toISOString(),
   }];
 
   if (scenario === 'degraded') {

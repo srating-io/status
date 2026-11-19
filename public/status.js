@@ -8,6 +8,9 @@
   var DAYS = 90;
   var POLL_MS = 60 * 1000;
 
+  /** Must match RESOLVED_INCIDENT_DAYS in the prober, which is what actually filters the list. */
+  var INCIDENT_DAYS = 2;
+
   /** Below this a day is drawn as an outage rather than a wobble. */
   var UPTIME_OK = 0.999;
   var UPTIME_WARN = 0.95;
@@ -225,7 +228,7 @@
     root.innerHTML = '';
 
     if (!list.length) {
-      root.appendChild(el('p', 'muted', 'No incidents in the last ' + DAYS + ' days.'));
+      root.appendChild(el('p', 'muted', 'No incidents in the last ' + INCIDENT_DAYS + ' days.'));
       return;
     }
 

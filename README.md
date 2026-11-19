@@ -129,7 +129,8 @@ update status_incident set state = 'resolved', resolved_at = utc_timestamp() whe
 anything written by hand: the prober resolves every open incident for a service as soon as that
 service is healthy, so a notice filed under `v1` closes on the next good check.
 
-The page shows everything unresolved, plus whatever was resolved in the last 90 days.
+The page shows everything unresolved, plus whatever was resolved in the last 2 days. The window is
+`RESOLVED_INCIDENT_DAYS` in the prober, mirrored by `INCIDENT_DAYS` in `status.js`.
 
 ## What it cannot tell you
 
