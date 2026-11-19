@@ -29,7 +29,7 @@ const SERVICES = [
   { key: 'ux', name: 'Design system', group: 'Website', latency: 210 },
   { key: 'ws', name: 'Live updates', group: 'Realtime', latency: 4 },
   { key: 'stripe', name: 'Billing', group: 'Billing', latency: 120 },
-  // the prober reports no latency for the pipeline: its number is a log age, not a response
+  // the pipeline check is whether the scraper manager is running, which has no response time
   { key: 'pipeline', name: 'Data pipeline', group: 'Data', latency: null },
 ];
 
@@ -112,7 +112,7 @@ const buildSnapshot = () => {
   if (scenario === 'down') {
     states.internal = 'down';
     states.database = 'down';
-    notices.push('Score and ranking updates are delayed.');
+    notices.push('3 finished games are waiting on box score data.');
 
     incidents.unshift({
       'state': 'investigating',

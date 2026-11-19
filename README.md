@@ -33,6 +33,10 @@ If `generated_at` is more than three intervals old the page says so instead of s
 green. The prober is a scraper handler, so a dead scraper would otherwise freeze the page on the
 last good result.
 
+The Data pipeline card means "the scraper manager is running". The prober is forked by it and exits
+with it, so the prober can only ever report it up. A stale snapshot is the real signal, and the page
+shows the pipeline as Down whenever it sees one.
+
 ## Working on it
 
 ```bash

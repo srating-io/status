@@ -292,6 +292,20 @@
     return false;
   }
 
+  /**
+   * The prober is forked by the scraper manager and exits with it, so a snapshot that stopped
+   * updating is the one sign the pipeline is not running. Nothing else can report it.
+   */
+  function markPipelineDown(snapshot) {
+    var list = snapshot.services || [];
+
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].key === 'pipeline') {
+        list[i].state = 'down';
+      }
+    }
+  }
+
   function renderBanner(snapshot, stale) {
     var node = $('banner');
     var state = snapshot.state || 'unknown';
@@ -341,6 +355,10 @@
       var snapshot = results[0];
       var history = results[1];
       var stale = renderStale(snapshot);
+
+      if (stale) {
+        markPipelineDown(snapshot);
+      }
 
       renderBanner(snapshot, stale);
       renderNotices(snapshot);
