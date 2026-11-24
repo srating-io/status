@@ -25,6 +25,7 @@ const SERVICES = [
   { key: 'v1', name: 'Public API', group: 'API', latency: 140 },
   { key: 'internal', name: 'Website API', group: 'API', latency: 95 },
   { key: 'database', name: 'Database', group: 'API', latency: 3 },
+  { key: 'mcp', name: 'MCP connector', group: 'API', latency: 180 },
   { key: 'gui', name: 'Website', group: 'Website', latency: 310 },
   { key: 'docs', name: 'Documentation', group: 'Website', latency: 180 },
   { key: 'ux', name: 'Design system', group: 'Website', latency: 210 },
